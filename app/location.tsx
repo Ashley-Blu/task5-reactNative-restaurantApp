@@ -6,10 +6,48 @@ import {
   TextInput,
   TouchableOpacity,
 } from "react-native";
-import React from "react";
+import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Toast from "react-native-toast-message";
 
 const Location = () => {
+
+  const [location, setLocation] = useState("");
+  const handleLocationSubmit = async () => {
+    if (!location.trim()) {
+      Toast.show({
+        type: "error",
+        text1: "Location cannot be empty.",
+        text2: "Please enter your valid location.",
+      });
+      return;
+
+    }
+
+    try {
+      await AsyncStorage.setItem("userLocation", location);
+
+      Toast.show({
+        type: "success",
+        text1: "Location saved successfully!",
+        text2: "Finding restaurants near you.",
+      });
+
+      setTimeout(() => {
+      router.replace("/(tabs)/home");
+      }, 1500);
+
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Failed to save location.",
+        text2: "Please try again.",
+      });
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
 
@@ -30,11 +68,13 @@ const Location = () => {
       <TextInput
         placeholder="Please enter your location..."
         placeholderTextColor="#999"
+        value={location}
+        onChangeText={setLocation}
         style={styles.input}
       />
     </View>
 
-    <TouchableOpacity style={styles.primaryButton}>
+    <TouchableOpacity style={styles.primaryButton} onPress={handleLocationSubmit}>
       <Text style={styles.primaryText}>Enter</Text>
     </TouchableOpacity>
 
