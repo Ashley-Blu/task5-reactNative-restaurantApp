@@ -23,7 +23,7 @@ const Welcome = () => {
     <SafeAreaView style={styles.container}>
       {/* Top right leaf */}
       <Image
-        source={require("../assets/images/Welcome/leaf.png")}
+        source={require("../assets/images/welcome/leaf.png")}
         style={styles.leafTop}
       />
 
@@ -42,7 +42,7 @@ const Welcome = () => {
       {/* CENTER BLOCK */}
       <View style={styles.centerContainer}>
         <Animated.Image
-          source={require("../assets/images/Welcome/scooter.png")}
+          source={require("../assets/images/welcome/scooter.png")}
           style={[
             styles.scooter,
             {
@@ -56,7 +56,7 @@ const Welcome = () => {
 
       {/* Bottom left leaf */}
       <Image
-        source={require("../assets/images/Welcome/leaf.png")}
+        source={require("../assets/images/welcome/leaf.png")}
         style={styles.leafBottom}
       />
     </SafeAreaView>
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     width: 250,
     height: 250,
     resizeMode: "contain",
-    alignSelf: "center",
+    alignSelf: "center",                                    
   },
 
   footerText: {
