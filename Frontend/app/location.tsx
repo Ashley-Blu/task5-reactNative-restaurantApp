@@ -109,7 +109,7 @@ const LocationPage = () => {
       {/* Top illustration */}
       <View style={styles.topSection}>
         <Image
-          source={require("../assets/images/welcome/scooter.png")}
+          source={require("../assets/images/scooter.png")}
           style={styles.image}
         />
       </View>
