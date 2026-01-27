@@ -17,9 +17,9 @@ app.get("/", (_, res) => {
   res.send("Backend running successfully");
 });
 
-app.use("/api/menu", menuRoutes);
-app.use("/api/cart", cartRoutes);
-app.use("/api/orders", orderRoutes);
+app.use("/menu", menuRoutes);
+app.use("/cart", cartRoutes);
+app.use("/orders", orderRoutes);
 
 const PORT = process.env.PORT || 4000;
 
