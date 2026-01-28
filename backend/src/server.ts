@@ -4,7 +4,8 @@ import dotenv from "dotenv";
 
 import menuRoutes from "./routes/menu.routes";
 import cartRoutes from "./routes/cart.routes";
-import orderRoutes from "./routes/order.routes";
+import checkoutRoutes from "./routes/checkout.routes";
+import userRoutes from "./routes/user.routes";
 
 dotenv.config();
 
@@ -19,7 +20,8 @@ app.get("/", (_, res) => {
 
 app.use("/menu", menuRoutes);
 app.use("/cart", cartRoutes);
-app.use("/orders", orderRoutes);
+app.use("/checkout", checkoutRoutes);
+app.use("/users", userRoutes);
 
 const PORT = process.env.PORT || 4000;
 
