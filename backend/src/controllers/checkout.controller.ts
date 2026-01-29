@@ -4,76 +4,98 @@ import { AuthRequest } from "../types/auth";
 
 export const checkout = async (req: AuthRequest, res: Response) => {
   const userId = req.user!.userId;
+  const client = await pool.connect();
 
   try {
-    // 1️⃣ get active cart
-    const cartResult = await pool.query(
+    // =========================
+    // START TRANSACTION
+    // =========================
+    await client.query("BEGIN");
+
+    // 1️⃣ get cart items
+    const cartItemsResult = await client.query(
       `
-      SELECT * FROM carts
-      WHERE user_id = $1 AND status = 'active'
-      LIMIT 1
+      SELECT
+        c.menu_item_id,
+        c.quantity,
+        m.price
+      FROM carts c
+      JOIN menu_items m ON c.menu_item_id = m.id
+      WHERE c.user_id = $1
+      FOR UPDATE
       `,
       [userId]
     );
 
-    if (cartResult.rows.length === 0) {
-      return res.status(400).json({ message: "No active cart found" });
-    }
-
-    const cart = cartResult.rows[0];
-
-    // 2️⃣ get cart items
-    const itemsResult = await pool.query(
-      `
-      SELECT
-        ci.quantity,
-        m.price
-      FROM cart_items ci
-      JOIN menu_items m ON ci.menu_item_id = m.id
-      WHERE ci.cart_id = $1
-      `,
-      [cart.id]
-    );
-
-    if (itemsResult.rows.length === 0) {
+    if (cartItemsResult.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(400).json({ message: "Cart is empty" });
     }
 
-    // 3️⃣ calculate total
-    const total = itemsResult.rows.reduce((sum, item) => {
-      return sum + Number(item.price) * item.quantity;
-    }, 0);
+    // 2️⃣ calculate total
+    let total = 0;
 
-    // 4️⃣ create order
-    const orderResult = await pool.query(
+    for (const item of cartItemsResult.rows) {
+      total += Number(item.price) * item.quantity;
+    }
+
+    // 3️⃣ create order
+    const orderResult = await client.query(
       `
       INSERT INTO orders (user_id, total_price, status)
-      VALUES ($1, $2, 'paid')
-      RETURNING *
+      VALUES ($1, $2, 'pending')
+      RETURNING id
       `,
       [userId, total]
     );
 
-    const order = orderResult.rows[0];
+    const orderId = orderResult.rows[0].id;
 
-    // 5️⃣ clear cart items
-    await pool.query(
-      `DELETE FROM cart_items WHERE cart_id = $1`,
-      [cart.id]
+    // 4️⃣ insert order items
+    for (const item of cartItemsResult.rows) {
+      await client.query(
+        `
+        INSERT INTO order_items
+        (order_id, menu_item_id, quantity, price)
+        VALUES ($1, $2, $3, $4)
+        `,
+        [
+          orderId,
+          item.menu_item_id,
+          item.quantity,
+          item.price,
+        ]
+      );
+    }
+
+    // 5️⃣ clear cart
+    await client.query(
+      `DELETE FROM carts WHERE user_id = $1`,
+      [userId]
     );
 
-    // 6️⃣ mark cart as completed
-    await pool.query(
-      `UPDATE carts SET status = 'completed' WHERE id = $1`,
-      [cart.id]
-    );
+    // =========================
+    // COMMIT TRANSACTION
+    // =========================
+    await client.query("COMMIT");
 
-    res.json({
+    res.status(201).json({
       message: "Checkout successful",
-      order,
+      orderId,
+      total,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Checkout failed" });
+    // =========================
+    // ROLLBACK ON ERROR
+    // =========================
+    await client.query("ROLLBACK");
+
+    console.error("CHECKOUT ERROR:", error);
+
+    res.status(500).json({
+      message: "Checkout failed. Transaction rolled back.",
+    });
+  } finally {
+    client.release();
   }
 };

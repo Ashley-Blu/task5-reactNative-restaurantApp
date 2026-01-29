@@ -1,6 +1,5 @@
 import { Response } from "express";
 import { pool } from "../db";
-import { v4 as uuidv4 } from "uuid";
 import { AuthRequest } from "../types/auth";
 
 export const initiatePayment = async (
@@ -11,37 +10,53 @@ export const initiatePayment = async (
   const userId = req.user!.userId;
 
   try {
-    // 1️⃣ validate order
+    // validate order
     const orderResult = await pool.query(
       `
       SELECT * FROM orders
-      WHERE id = $1 AND user_id = $2 AND status = 'pending'
+      WHERE id = $1
+        AND user_id = $2
+        AND status = 'pending'
       `,
       [orderId, userId]
     );
 
     if (orderResult.rows.length === 0) {
-      return res.status(404).json({
+      return res.status(400).json({
         message: "Order not found or already paid",
       });
     }
 
-    const order = orderResult.rows[0];
+    // prevent multiple payments
+    const existingPayment = await pool.query(
+      `
+      SELECT id FROM payments
+      WHERE order_id = $1 AND status = 'pending'
+      `,
+      [orderId]
+    );
 
-    // 2️⃣ create payment
-    const reference = `PAY_${uuidv4()}`;
+    if (existingPayment.rows.length > 0) {
+      return res.status(400).json({
+        message: "Payment already initiated",
+      });
+    }
+
+    const reference = `PAY_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(2, 8)}`;
 
     const paymentResult = await pool.query(
       `
       INSERT INTO payments
       (order_id, user_id, amount, provider, reference, status)
-      VALUES ($1, $2, $3, $4, $5, 'pending')
+      VALUES ($1,$2,$3,$4,$5,'pending')
       RETURNING *
       `,
       [
-        order.id,
+        orderId,
         userId,
-        order.total_price,
+        orderResult.rows[0].total_price,
         provider,
         reference,
       ]
@@ -62,27 +77,50 @@ export const verifyPayment = async (
   res: Response
 ) => {
   const { reference } = req.body;
+  const userId = req.user!.userId;
+
+  const client = await pool.connect();
 
   try {
-    // 1️⃣ get payment
-    const paymentResult = await pool.query(
+    await client.query("BEGIN");
+
+    // lock payment
+    const paymentResult = await client.query(
       `
-      SELECT * FROM payments
-      WHERE reference = $1 AND status = 'pending'
+      SELECT *
+      FROM payments
+      WHERE reference = $1
+      FOR UPDATE
       `,
       [reference]
     );
 
     if (paymentResult.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({
-        message: "Payment not found or already processed",
+        message: "Payment not found",
       });
     }
 
     const payment = paymentResult.rows[0];
 
-    // 2️⃣ mark payment success
-    await pool.query(
+    // ownership check
+    if (payment.user_id !== userId) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({
+        message: "Not authorized for this payment",
+      });
+    }
+
+    if (payment.status !== "pending") {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        message: "Payment already processed",
+      });
+    }
+
+    // mark payment success
+    await client.query(
       `
       UPDATE payments
       SET status = 'success'
@@ -91,8 +129,8 @@ export const verifyPayment = async (
       [payment.id]
     );
 
-    // 3️⃣ mark order paid
-    await pool.query(
+    // mark order paid
+    await client.query(
       `
       UPDATE orders
       SET status = 'paid'
@@ -101,12 +139,19 @@ export const verifyPayment = async (
       [payment.order_id]
     );
 
+    await client.query("COMMIT");
+
     res.json({
-      message: "Payment successful",
-      payment,
+      message: "Payment verified successfully",
     });
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error(err);
-    res.status(500).json({ message: "Payment verification failed" });
+
+    res.status(500).json({
+      message: "Payment verification failed",
+    });
+  } finally {
+    client.release();
   }
 };

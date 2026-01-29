@@ -9,8 +9,26 @@ import { requireAdmin } from "../middleware/role.middleware";
 
 const router = Router();
 
-router.get("/orders", getAllOrders, authMiddleware, requireAdmin);
-router.get("/orders/:orderId", getOrderDetailsAdmin, authMiddleware, requireAdmin);
-router.patch("/orders/:orderId/status", updateOrderStatus, authMiddleware, requireAdmin);
+router.get(
+  "/orders",
+  authMiddleware,
+  requireAdmin,
+  getAllOrders
+);
+
+router.get(
+  "/orders/:orderId",
+  authMiddleware,
+  requireAdmin,
+  getOrderDetailsAdmin
+);
+
+router.patch(
+  "/orders/:orderId/status",
+  authMiddleware,
+  requireAdmin,
+  updateOrderStatus
+);
+
 
 export default router;

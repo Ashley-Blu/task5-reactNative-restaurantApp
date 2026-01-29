@@ -5,11 +5,37 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from "react-native";
 import { useCart } from "../../context/CartContext";
+import * as checkoutApi from "../../api/checkout";
+import { useRouter } from "expo-router";
 
 export default function Cart() {
   const { items, increase, decrease, totalPrice } = useCart();
+  const router = useRouter();
+  const [loading, setLoading] = React.useState(false);
+
+  const handleCheckout = async () => {
+    setLoading(true);
+    try {
+      await checkoutApi.checkout();
+      Alert.alert("Order Placed!", "Your order has been placed successfully.", [
+        {
+          text: "OK",
+          onPress: () => router.replace("/profile"),
+        },
+      ]);
+      // Optionally: clear cart here if you add a clearCart method
+    } catch (err: any) {
+      Alert.alert(
+        "Checkout Failed",
+        err.response?.data?.message || "Something went wrong",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -25,11 +51,9 @@ export default function Cart() {
         {items.map((item) => (
           <View key={item.id} style={styles.card}>
             <Image source={item.image} style={styles.image} />
-
             <View style={styles.info}>
               <Text style={styles.name}>{item.name}</Text>
               <Text style={styles.price}>R{item.price}</Text>
-
               <View style={styles.qtyRow}>
                 <TouchableOpacity
                   style={styles.qtyBtn}
@@ -37,9 +61,7 @@ export default function Cart() {
                 >
                   <Text style={styles.qtyText}>−</Text>
                 </TouchableOpacity>
-
                 <Text style={styles.quantity}>{item.quantity}</Text>
-
                 <TouchableOpacity
                   style={styles.qtyBtn}
                   onPress={() => increase(item.id)}
@@ -51,18 +73,20 @@ export default function Cart() {
           </View>
         ))}
       </ScrollView>
-
       {/* TOTAL + CHECKOUT */}
       <View style={styles.footer}>
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalAmount}>
-            R{totalPrice.toFixed(2)}
-          </Text>
+          <Text style={styles.totalAmount}>R{totalPrice.toFixed(2)}</Text>
         </View>
-
-        <TouchableOpacity style={styles.checkoutBtn}>
-          <Text style={styles.checkoutText}>Checkout</Text>
+        <TouchableOpacity
+          style={styles.checkoutBtn}
+          onPress={handleCheckout}
+          disabled={loading}
+        >
+          <Text style={styles.checkoutText}>
+            {loading ? "Processing..." : "Checkout"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

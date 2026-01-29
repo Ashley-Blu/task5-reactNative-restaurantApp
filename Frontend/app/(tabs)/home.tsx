@@ -2,16 +2,17 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Image,
   TouchableOpacity,
+  ScrollView,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import EvilIcons from "@expo/vector-icons/EvilIcons";
 import AntDesign from "@expo/vector-icons/AntDesign";
 
-import { pickedForYou, specials, menu } from "../../data/menu";
+import api from "../../api/api";
+import { mapMenu } from "../../utils/menuMapper";
 
 import PickedCard from "../../components/PickedCard";
 import SpecialCard from "../../components/SpecialCard";
@@ -20,17 +21,40 @@ import MenuItemCard from "../../components/MenuItemCard";
 
 export default function Home() {
   const [mode, setMode] = useState<"delivery" | "pickup">("delivery");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [picked, setPicked] = useState<any[]>([]);
+  const [specials, setSpecials] = useState<any[]>([]);
+  const [menu, setMenu] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchMenu = async () => {
+      try {
+        const res = await api.get("/menu");
+        const structured = mapMenu(res.data);
+
+        setPicked(structured.pickedForYou);
+        setSpecials(structured.specials);
+        setMenu(structured.menu);
+      } catch {
+        setError("Failed to load menu");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMenu();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* ================= BANNER ================= */}
         <Image
           source={require("../../assets/images/banner.png")}
           style={styles.banner}
         />
 
-        {/* ================= RESTAURANT INFO ================= */}
         <View style={styles.infoBox}>
           <Text style={styles.title}>Foodie’s Pizza Hut</Text>
 
@@ -40,10 +64,9 @@ export default function Home() {
 
           <Text style={styles.address}>
             <EvilIcons name="location" size={18} />
-            15 Biccard Street, Polokwane, 0700
+            15 Biccard Street, Polokwane
           </Text>
 
-          {/* DELIVERY / PICKUP */}
           <View style={styles.toggleRow}>
             <TouchableOpacity
               style={[styles.toggleBtn, mode === "delivery" && styles.active]}
@@ -77,53 +100,50 @@ export default function Home() {
           </View>
         </View>
 
-        {/* ================= PICKED FOR YOU ================= */}
-        <Text style={styles.sectionTitle}>Picked for you</Text>
+        {loading && <Text style={{ textAlign: "center" }}>Loading menu...</Text>}
+        {error ? (
+          <Text style={{ color: "red", textAlign: "center" }}>{error}</Text>
+        ) : null}
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16 }}
-        >
-          {pickedForYou.map((item) => (
-            <PickedCard key={item.id} item={item} />
-          ))}
-        </ScrollView>
+        {/* PICKED FOR YOU */}
+        {picked.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Picked for you</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {picked.map((item) => (
+                <PickedCard key={item.id} item={item} />
+              ))}
+            </ScrollView>
+          </>
+        )}
 
-        {/* ================= SPECIALS ================= */}
-        <Text style={styles.sectionTitle}>Specials</Text>
+        {/* SPECIALS */}
+        {specials.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Specials</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {specials.map((item) => (
+                <SpecialCard key={item.id} item={item} onAdd={() => {}} />
+              ))}
+            </ScrollView>
+          </>
+        )}
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
-        >
-          {specials.map((item) => (
-            <SpecialCard key={item.id} item={item} onAdd={() => {}} />
-          ))}
-        </ScrollView>
-
-        {/* ================= FULL MENU ================= */}
+        {/* MENU */}
         {menu.map((section) => (
           <View key={section.id} style={styles.menuSection}>
             <Text style={styles.menuTitle}>{section.title}</Text>
 
-            {/* GRID (pizza, salads, dessert) */}
-            {section.type === "grid" && (
+            {section.type === "grid" ? (
               <View style={styles.grid}>
-                {section.items.map((item) => (
+                {section.items.map((item: any) => (
                   <CategoryItem key={item.id} item={item} />
                 ))}
               </View>
-            )}
-
-            {/* LIST (drinks) */}
-            {section.type === "list" && (
-              <View>
-                {section.items.map((item) => (
-                  <MenuItemCard key={item.id} item={item} />
-                ))}
-              </View>
+            ) : (
+              section.items.map((item: any) => (
+                <MenuItemCard key={item.id} item={item} />
+              ))
             )}
           </View>
         ))}
@@ -133,42 +153,14 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
+  banner: { width: "100%", height: 220 },
+  infoBox: { padding: 16 },
+  title: { fontSize: 22, fontWeight: "800" },
+  rating: { marginVertical: 4, fontSize: 13, color: "#444" },
+  address: { fontSize: 13, color: "#444", marginBottom: 12 },
 
-  banner: {
-    width: "100%",
-    height: 220,
-  },
-
-  infoBox: {
-    padding: 16,
-  },
-
-  title: {
-    fontSize: 22,
-    fontWeight: "800",
-  },
-
-  rating: {
-    marginVertical: 4,
-    fontSize: 13,
-    color: "#444",
-  },
-
-  address: {
-    fontSize: 13,
-    color: "#444",
-    marginBottom: 12,
-  },
-
-  toggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
+  toggleRow: { flexDirection: "row", alignItems: "center" },
   toggleBtn: {
     paddingHorizontal: 18,
     paddingVertical: 8,
@@ -177,26 +169,10 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     marginRight: 10,
   },
-
-  active: {
-    backgroundColor: "#F9BF01",
-    borderColor: "#F9BF01",
-  },
-
-  toggleText: {
-    fontWeight: "600",
-  },
-
-  activeText: {
-    fontWeight: "800",
-  },
-
-  time: {
-    marginLeft: "auto",
-    fontSize: 12,
-    textAlign: "right",
-    color: "#444",
-  },
+  active: { backgroundColor: "#F9BF01", borderColor: "#F9BF01" },
+  toggleText: { fontWeight: "600" },
+  activeText: { fontWeight: "800" },
+  time: { marginLeft: "auto", fontSize: 12, color: "#444" },
 
   sectionTitle: {
     fontSize: 20,
@@ -205,16 +181,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
-  menuSection: {
-    paddingHorizontal: 16,
-    marginBottom: 28,
-  },
-
-  menuTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    marginBottom: 14,
-  },
+  menuSection: { paddingHorizontal: 16, marginBottom: 28 },
+  menuTitle: { fontSize: 20, fontWeight: "800", marginBottom: 14 },
 
   grid: {
     flexDirection: "row",

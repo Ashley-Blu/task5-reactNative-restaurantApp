@@ -1,6 +1,6 @@
+import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 
 import menuRoutes from "./routes/menu.routes";
 import cartRoutes from "./routes/cart.routes";
@@ -11,6 +11,7 @@ import adminRoutes from "./routes/admin.routes";
 import adminAnalyticsRoutes from "./routes/admin.analytics.routes";
 import authRoutes from "./routes/auth.routes";
 import paymentRoutes from "./routes/payment.routes";
+import passwordRoutes from "./routes/password.routes";
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use("/admin", adminRoutes)
 app.use("/admin/analytics", adminAnalyticsRoutes);
 app.use("/auth", authRoutes);
 app.use("/payment", paymentRoutes);
+app.use("/password", passwordRoutes);
 
 const PORT = process.env.PORT || 4000;
 

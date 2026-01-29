@@ -4,6 +4,7 @@ import { useCart } from "../context/CartContext";
 
 type Props = {
   item: {
+    id: string;
     name: string;
     description: string;
     price: number;
@@ -33,7 +34,17 @@ export default function SpecialCard({ item, onAdd }: Props) {
       <View style={styles.right}>
         <Image source={item.image} style={styles.image} />
 
-        <TouchableOpacity style={styles.addBtn} onPress={() => addToCart(item)}>
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() =>
+            addToCart({
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              image: item.image,
+            })
+          }
+        >
           <Ionicons name="add" size={20} />
         </TouchableOpacity>
       </View>

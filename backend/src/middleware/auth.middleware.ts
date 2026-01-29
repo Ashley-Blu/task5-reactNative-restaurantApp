@@ -1,7 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "secret123";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined in environment variables");
+}
 
 export const authMiddleware = (
   req: Request,
@@ -10,8 +14,9 @@ export const authMiddleware = (
 ) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader)
+  if (!authHeader) {
     return res.status(401).json({ message: "No token provided" });
+  }
 
   const token = authHeader.split(" ")[1];
 
@@ -21,7 +26,7 @@ export const authMiddleware = (
       role: string;
     };
 
-    req.user = decoded; //now fully typed
+    req.user = decoded;
     next();
   } catch {
     return res.status(401).json({ message: "Invalid token" });

@@ -1,50 +1,85 @@
-# Welcome to your Expo app 👋
+# Restaurant App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A full-stack restaurant application with an Admin Dashboard (Next.js), Backend (Node.js/Express), and Frontend (React Native/Expo).
 
-## Get started
+---
 
-1. Install dependencies
+## Table of Contents
 
-   ```bash
-   npm install
-   ```
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Running the Project](#running-the-project)
+- [Figma Design](#figma-design)
+- [Screenshots](#screenshots)
+- [License](#license)
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## Project Structure
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+Restaurant-App/
+	├── admin-dashboard/   # Next.js Admin Dashboard
+	├── backend/           # Node.js/Express Backend API
+	└── Frontend/          # React Native/Expo Mobile App
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## Getting Started
 
-To learn more about developing your project with Expo, look at the following resources:
+### Prerequisites
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- Node.js (v18+ recommended)
+- npm or yarn
+- Expo CLI (for mobile frontend)
 
-## Join the community
+---
 
-Join our community of developers creating universal apps.
+## Running the Project
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### 1. Backend (API)
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+### 2. Admin Dashboard (Next.js)
+
+```bash
+cd admin-dashboard
+npm install
+npm run dev
+```
+
+### 3. Frontend (Expo/React Native)
+
+```bash
+cd Frontend
+npm install
+npx expo start
+```
+
+---
+
+## Figma Design
+
+[Figma Link (insert your link here)](https://www.figma.com/)
+
+---
+
+## Screenshots
+
+Add screenshots of your app below:
+
+| Admin Dashboard                                      | Mobile App                                       |
+| ---------------------------------------------------- | ------------------------------------------------ |
+| ![Admin Screenshot](screenshots/admin-dashboard.png) | ![Mobile Screenshot](screenshots/mobile-app.png) |
+
+---
+
+## License
+
+MIT

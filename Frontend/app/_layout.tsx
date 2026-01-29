@@ -2,20 +2,22 @@
 import { Stack } from "expo-router";
 import Toast from "react-native-toast-message";
 import { CartProvider } from "../context/CartContext";
+import { AuthProvider } from "../context/AuthContext";
 
 export default function Layout() {
   return (
-    <CartProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="welcome" />
-        <Stack.Screen name="location" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="login" />
-        <Stack.Screen name="register" />
-      </Stack>
-
-      <Toast />
-    </CartProvider>
+    <AuthProvider>
+      <CartProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="welcome" />
+          <Stack.Screen name="location" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="register" />
+        </Stack>
+        <Toast />
+      </CartProvider>
+    </AuthProvider>
   );
 }
