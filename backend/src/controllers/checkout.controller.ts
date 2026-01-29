@@ -5,7 +5,7 @@ export const checkout = async (req: Request, res: Response) => {
   const { userId } = req.params;
 
   try {
-    // 1️⃣ get active cart
+    //  get active cart
     const cartResult = await pool.query(
       `SELECT * FROM carts
        WHERE user_id = $1 AND status = 'active'
@@ -19,7 +19,7 @@ export const checkout = async (req: Request, res: Response) => {
 
     const cart = cartResult.rows[0];
 
-    // 2️⃣ get cart items + prices
+    //  get cart items + prices
     const itemsResult = await pool.query(
       `
       SELECT 
@@ -37,14 +37,14 @@ export const checkout = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Cart is empty" });
     }
 
-    // 3️⃣ calculate total price
+    //  calculate total price
     let total = 0;
 
     for (const item of itemsResult.rows) {
       total += item.price * item.quantity;
     }
 
-    // 4️⃣ create order
+    // create order
     const orderResult = await pool.query(
       `
       INSERT INTO orders (user_id, total_price, status)
@@ -56,7 +56,7 @@ export const checkout = async (req: Request, res: Response) => {
 
     const order = orderResult.rows[0];
 
-    // 5️⃣ insert order items
+    // insert order items
     for (const item of itemsResult.rows) {
       await pool.query(
         `
@@ -73,13 +73,13 @@ export const checkout = async (req: Request, res: Response) => {
       );
     }
 
-    // 6️⃣ close cart
+    //  close cart
     await pool.query(
       `UPDATE carts SET status = 'completed' WHERE id = $1`,
       [cart.id]
     );
 
-    // 7️⃣ cleanup cart items (optional but recommended)
+    //  cleanup cart items (optional but recommended)
     await pool.query(
       `DELETE FROM cart_items WHERE cart_id = $1`,
       [cart.id]

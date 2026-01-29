@@ -1,22 +1,27 @@
 import { Request, Response } from "express";
 import { pool } from "../db";
+import bcrypt from "bcrypt";
 
 // CREATE USER
 export const createUser = async (req: Request, res: Response) => {
-  const { name, email } = req.body;
+  const { name, email, password } = req.body;
 
-  if (!name || !email) {
-    return res.status(400).json({ message: "Name and email required" });
+  if (!name || !email || !password) {
+    return res.status(400).json({
+      message: "Name, email and password required",
+    });
   }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
 
   try {
     const result = await pool.query(
       `
-      INSERT INTO users (name, email)
-      VALUES ($1, $2)
-      RETURNING *
+      INSERT INTO users (name, email, password, role)
+      VALUES ($1, $2, $3, 'user')
+      RETURNING id, name, email, role
       `,
-      [name, email]
+      [name, email, hashedPassword]
     );
 
     res.status(201).json(result.rows[0]);
@@ -30,26 +35,25 @@ export const createUser = async (req: Request, res: Response) => {
   }
 };
 
-// GET USER BY ID
-export const getUser = async (req: Request, res: Response) => {
+//GET USER BY ID
+export const getUserById = async (req: Request, res: Response) => {
   const { userId } = req.params;
-
   try {
     const result = await pool.query(
-      `SELECT * FROM users WHERE id = $1`,
+      `SELECT id, name, email, role FROM users WHERE id = $1`,
       [userId]
     );
-
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
-
     res.json(result.rows[0]);
-  } catch (error) {
+  }
+  catch (error) {
     console.error(error);
     res.status(500).json({ message: "Failed to fetch user" });
   }
 };
+
 
 // GET ALL USERS
 export const getAllUsers = async (req: Request, res: Response) => {
