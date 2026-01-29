@@ -1,16 +1,31 @@
 import { Router } from "express";
 import {
-  getUserOrders,
-  getOrderDetails,
+  getMyOrders,
+  getAllOrders,
   updateOrderStatus,
 } from "../controllers/order.controller";
 
+import { authMiddleware } from "../middleware/auth.middleware";
+import { requireRole } from "../middleware/role.middleware";
+
 const router = Router();
 
-router.get("/user/:userId", getUserOrders);
-router.get("/:orderId", getOrderDetails);
+// user
+router.get("/my", authMiddleware, getMyOrders);
 
-// admin / restaurant
-router.patch("/:orderId/status", updateOrderStatus);
+// admin
+router.get(
+  "/admin",
+  authMiddleware,
+  requireRole("admin"),
+  getAllOrders
+);
+
+router.put(
+  "/admin/:orderId/status",
+  authMiddleware,
+  requireRole("admin"),
+  updateOrderStatus
+);
 
 export default router;

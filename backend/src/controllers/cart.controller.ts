@@ -1,15 +1,10 @@
 import { Request, Response } from "express";
 import { pool } from "../db";
+import { AuthRequest } from "../types/auth";
 
-/**
- * ============================
- * ADD TO CART
- * POST /cart/:userId
- * body: { menu_item_id, quantity }
- * ============================
- */
+// ADD TO CART
 export const addToCart = async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const userId = req.user?.userId;
   const { menu_item_id, quantity = 1 } = req.body;
 
   if (!userId || !menu_item_id) {
@@ -19,7 +14,6 @@ export const addToCart = async (req: Request, res: Response) => {
   }
 
   try {
-    // find active cart
     let cartResult = await pool.query(
       `
       SELECT * FROM carts
@@ -29,7 +23,6 @@ export const addToCart = async (req: Request, res: Response) => {
       [userId]
     );
 
-    // create cart if none
     if (cartResult.rows.length === 0) {
       cartResult = await pool.query(
         `
@@ -43,7 +36,6 @@ export const addToCart = async (req: Request, res: Response) => {
 
     const cart = cartResult.rows[0];
 
-    // check if item already exists
     const existingItem = await pool.query(
       `
       SELECT * FROM cart_items
@@ -53,7 +45,6 @@ export const addToCart = async (req: Request, res: Response) => {
     );
 
     if (existingItem.rows.length > 0) {
-      // update quantity
       await pool.query(
         `
         UPDATE cart_items
@@ -63,10 +54,9 @@ export const addToCart = async (req: Request, res: Response) => {
         [quantity, existingItem.rows[0].id]
       );
     } else {
-      // insert new item
       await pool.query(
         `
-        INSERT INTO cart_items (cart_id, menu_item_id, quantity)
+        INSERT INTO cart_items (menu_item_id, quantity)
         VALUES ($1, $2, $3)
         `,
         [cart.id, menu_item_id, quantity]
@@ -75,23 +65,18 @@ export const addToCart = async (req: Request, res: Response) => {
 
     res.json({ message: "Item added to cart" });
   } catch (error) {
-    console.error(error);
+    console.error("ADD TO CART ERROR:", error);
     res.status(500).json({ message: "Failed to add to cart" });
   }
 };
 
-/**
- * ============================
- * GET CART
- * GET /cart/:userId
- * ============================
- */
-export const getCart = async (req: Request, res: Response) => {
-  const { userId } = req.params;
+
+// GET CART
+export const getCart = async (req: AuthRequest, res: Response) => {
+  const userId = req.user!.userId;
 
   try {
-    // find active cart
-    const cartResult = await pool.query(
+    let cartResult = await pool.query(
       `
       SELECT * FROM carts
       WHERE user_id = $1 AND status = 'active'
@@ -100,9 +85,8 @@ export const getCart = async (req: Request, res: Response) => {
       [userId]
     );
 
-    // create empty cart if none exists
     if (cartResult.rows.length === 0) {
-      const newCart = await pool.query(
+      cartResult = await pool.query(
         `
         INSERT INTO carts (user_id, status)
         VALUES ($1, 'active')
@@ -110,16 +94,10 @@ export const getCart = async (req: Request, res: Response) => {
         `,
         [userId]
       );
-
-      return res.json({
-        cart: newCart.rows[0],
-        items: [],
-      });
     }
 
     const cart = cartResult.rows[0];
 
-    // get cart items
     const itemsResult = await pool.query(
       `
       SELECT
@@ -144,6 +122,7 @@ export const getCart = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to load cart" });
   }
 };
+
 
 /**
  * ============================

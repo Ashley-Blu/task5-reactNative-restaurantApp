@@ -1,111 +1,91 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { pool } from "../db";
+import { AuthRequest } from "../types/auth";
 
-// GET all orders for a user
-export const getUserOrders = async (req: Request, res: Response) => {
-  const { userId } = req.params;
+const statusFlow = [
+  "paid",
+  "preparing",
+  "ready",
+  "out_for_delivery",
+  "delivered",
+];
 
-  try {
-    const result = await pool.query(
-      `
-      SELECT id, total_price, status, created_at
-      FROM orders
-      WHERE user_id = $1
-      ORDER BY created_at DESC
-      `,
-      [userId]
-    );
+export const getMyOrders = async (req: AuthRequest, res: Response) => {
+  const userId = req.user!.userId;
 
-    res.json(result.rows);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Failed to fetch orders" });
-  }
+  const result = await pool.query(
+    `
+    SELECT *
+    FROM orders
+    WHERE user_id = $1
+    ORDER BY created_at DESC
+    `,
+    [userId]
+  );
+
+  res.json(result.rows);
 };
 
-// GET single order details
-export const getOrderDetails = async (req: Request, res: Response) => {
-  const { orderId } = req.params;
+export const getAllOrders = async (_req: AuthRequest, res: Response) => {
+  const result = await pool.query(
+    `
+    SELECT
+      o.*,
+      u.name,
+      u.email
+    FROM orders o
+    JOIN users u ON o.user_id = u.id
+    ORDER BY o.created_at DESC
+    `
+  );
 
-  try {
-    const orderResult = await pool.query(
-      `
-      SELECT id, total_price, status, created_at
-      FROM orders
-      WHERE id = $1
-      `,
-      [orderId]
-    );
-
-    if (orderResult.rows.length === 0) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    const itemsResult = await pool.query(
-      `
-      SELECT 
-        m.name,
-        oi.quantity,
-        oi.price
-      FROM order_items oi
-      JOIN menu_items m ON oi.menu_item_id = m.id
-      WHERE oi.order_id = $1
-      `,
-      [orderId]
-    );
-
-    res.json({
-      order: orderResult.rows[0],
-      items: itemsResult.rows,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Failed to fetch order details" });
-  }
+  res.json(result.rows);
 };
 
-// UPDATE order status
-export const updateOrderStatus = async (req: Request, res: Response) => {
+export const updateOrderStatus = async (
+  req: AuthRequest,
+  res: Response
+) => {
   const { orderId } = req.params;
   const { status } = req.body;
 
-  const allowedStatuses = [
-    "paid",
-    "preparing",
-    "on_the_way",
-    "delivered",
-  ];
+  if (!status) {
+    return res.status(400).json({ message: "Status required" });
+  }
 
-  if (!allowedStatuses.includes(status)) {
+  // get order
+  const orderResult = await pool.query(
+    `SELECT * FROM orders WHERE id = $1`,
+    [orderId]
+  );
+
+  if (orderResult.rows.length === 0) {
+    return res.status(404).json({ message: "Order not found" });
+  }
+
+  const order = orderResult.rows[0];
+
+  const currentIndex = statusFlow.indexOf(order.status);
+  const nextIndex = statusFlow.indexOf(status);
+
+  if (nextIndex !== currentIndex + 1) {
     return res.status(400).json({
-      message: "Invalid order status",
+      message: `Invalid status transition from ${order.status} to ${status}`,
     });
   }
 
-  try {
-    const result = await pool.query(
-      `
-      UPDATE orders
-      SET status = $1
-      WHERE id = $2
-      RETURNING *
-      `,
-      [status, orderId]
-    );
+  const updated = await pool.query(
+    `
+    UPDATE orders
+    SET status = $1
+    WHERE id = $2
+    RETURNING *
+    `,
+    [status, orderId]
+  );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        message: "Order not found",
-      });
-    }
-
-    res.json({
-      message: "Order status updated",
-      order: result.rows[0],
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Failed to update order status" });
-  }
+  res.json({
+    message: "Order status updated",
+    order: updated.rows[0],
+  });
 };
-

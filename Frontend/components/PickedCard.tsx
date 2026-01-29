@@ -1,5 +1,5 @@
 import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
-import { useCart } from "@/context/CartContext";
+import { useCart } from "../context/CartContext";
 
 type Props = {
   item: {

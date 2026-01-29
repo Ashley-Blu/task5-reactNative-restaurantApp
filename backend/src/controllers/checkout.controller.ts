@@ -1,29 +1,31 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { pool } from "../db";
+import { AuthRequest } from "../types/auth";
 
-export const checkout = async (req: Request, res: Response) => {
-  const { userId } = req.params;
+export const checkout = async (req: AuthRequest, res: Response) => {
+  const userId = req.user!.userId;
 
   try {
-    //  get active cart
+    // 1️⃣ get active cart
     const cartResult = await pool.query(
-      `SELECT * FROM carts
-       WHERE user_id = $1 AND status = 'active'
-       LIMIT 1`,
+      `
+      SELECT * FROM carts
+      WHERE user_id = $1 AND status = 'active'
+      LIMIT 1
+      `,
       [userId]
     );
 
     if (cartResult.rows.length === 0) {
-      return res.status(400).json({ message: "No active cart" });
+      return res.status(400).json({ message: "No active cart found" });
     }
 
     const cart = cartResult.rows[0];
 
-    //  get cart items + prices
+    // 2️⃣ get cart items
     const itemsResult = await pool.query(
       `
-      SELECT 
-        ci.menu_item_id,
+      SELECT
         ci.quantity,
         m.price
       FROM cart_items ci
@@ -37,14 +39,12 @@ export const checkout = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Cart is empty" });
     }
 
-    //  calculate total price
-    let total = 0;
+    // 3️⃣ calculate total
+    const total = itemsResult.rows.reduce((sum, item) => {
+      return sum + Number(item.price) * item.quantity;
+    }, 0);
 
-    for (const item of itemsResult.rows) {
-      total += item.price * item.quantity;
-    }
-
-    // create order
+    // 4️⃣ create order
     const orderResult = await pool.query(
       `
       INSERT INTO orders (user_id, total_price, status)
@@ -56,32 +56,15 @@ export const checkout = async (req: Request, res: Response) => {
 
     const order = orderResult.rows[0];
 
-    // insert order items
-    for (const item of itemsResult.rows) {
-      await pool.query(
-        `
-        INSERT INTO order_items
-        (order_id, menu_item_id, quantity, price)
-        VALUES ($1, $2, $3, $4)
-        `,
-        [
-          order.id,
-          item.menu_item_id,
-          item.quantity,
-          item.price,
-        ]
-      );
-    }
-
-    //  close cart
+    // 5️⃣ clear cart items
     await pool.query(
-      `UPDATE carts SET status = 'completed' WHERE id = $1`,
+      `DELETE FROM cart_items WHERE cart_id = $1`,
       [cart.id]
     );
 
-    //  cleanup cart items (optional but recommended)
+    // 6️⃣ mark cart as completed
     await pool.query(
-      `DELETE FROM cart_items WHERE cart_id = $1`,
+      `UPDATE carts SET status = 'completed' WHERE id = $1`,
       [cart.id]
     );
 
@@ -89,11 +72,8 @@ export const checkout = async (req: Request, res: Response) => {
       message: "Checkout successful",
       order,
     });
-  } catch (error: any) {
-  console.error("CHECKOUT ERROR 👉", error.message);
-  res.status(500).json({
-    message: "Checkout failed",
-    error: error.message,
-  });
-}
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Checkout failed" });
+  }
 };

@@ -1,6 +1,6 @@
 import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useCart } from "@/context/CartContext";
+import { useCart } from "../context/CartContext";
 
 type Props = {
   item: {

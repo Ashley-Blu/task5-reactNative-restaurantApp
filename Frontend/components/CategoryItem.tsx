@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
 import AntDesign from "@expo/vector-icons/AntDesign";
-import { useCart } from "@/context/CartContext";
+import { useCart } from "../context/CartContext";
 
 export default function CategoryItem({ item }: any) {
   const { addToCart } = useCart();
