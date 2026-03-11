@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 
 import menuRoutes from "./routes/menu.routes";
+import categoryRoutes from "./routes/category.routes";
 import cartRoutes from "./routes/cart.routes";
 import checkoutRoutes from "./routes/checkout.routes";
 import userRoutes from "./routes/user.routes";
@@ -26,6 +27,7 @@ app.get("/", (_, res) => {
 
 // Routes/API Endpoints
 app.use("/menu", menuRoutes);
+app.use("/categories", categoryRoutes);
 app.use("/cart", cartRoutes);
 app.use("/checkout", checkoutRoutes);
 app.use("/users", userRoutes);

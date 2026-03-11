@@ -6,11 +6,10 @@ import { Button, Alert } from "react-native";
 import { useRouter } from "expo-router";
 
 export default function Profile() {
-
   type Order = {
     id: number;
     status: string;
-    total_amount: number;
+    total_price: number;
     created_at: string;
   };
   const { user, logout } = useAuth();
@@ -20,6 +19,10 @@ export default function Profile() {
   const router = useRouter();
 
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+
     const fetchOrders = async () => {
       try {
         const res = await userApi.getOrderHistory();
@@ -31,7 +34,7 @@ export default function Profile() {
       }
     };
     fetchOrders();
-  }, []);
+  }, [user]);
 
   const handleLogout = async () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -46,6 +49,21 @@ export default function Profile() {
       },
     ]);
   };
+
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Profile</Text>
+        <Text style={{ marginBottom: 16 }}>
+          You need to be logged in to view your profile and orders.
+        </Text>
+        <Button
+          title="Go to Login"
+          onPress={() => router.replace("/login")}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -71,7 +89,7 @@ export default function Profile() {
           <View style={styles.orderCard}>
             <Text style={styles.orderId}>Order #{item.id}</Text>
             <Text>Status: {item.status}</Text>
-            <Text>Total: R{item.total_amount}</Text>
+            <Text>Total: R{item.total_price}</Text>
             <Text>Date: {new Date(item.created_at).toLocaleString()}</Text>
           </View>
         )}

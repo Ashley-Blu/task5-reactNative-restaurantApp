@@ -66,7 +66,7 @@ npx expo start
 
 ## Figma Design
 
-[Figma Link (insert your link here)](https://www.figma.com/)
+[Figma Link (https://www.figma.com/design/ImrtRtxursLjNHjGp1m8yG/Restaurant-app?node-id=1-35&p=f&t=Gfy4YPhNoEvrGnRG-0)](https://www.figma.com/)
 
 ---
 

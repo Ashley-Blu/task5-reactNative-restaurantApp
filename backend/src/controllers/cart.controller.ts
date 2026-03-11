@@ -3,7 +3,7 @@ import { pool } from "../db";
 import { AuthRequest } from "../types/auth";
 
 // ADD TO CART
-export const addToCart = async (req: Request, res: Response) => {
+export const addToCart = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.userId;
   const { menu_item_id, quantity = 1 } = req.body;
 
@@ -14,6 +14,16 @@ export const addToCart = async (req: Request, res: Response) => {
   }
 
   try {
+    const qty = Number(quantity);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      return res.status(400).json({ message: "Invalid quantity" });
+    }
+
+    const menuItemId = Number(menu_item_id);
+    if (!Number.isFinite(menuItemId)) {
+      return res.status(400).json({ message: "Invalid menu_item_id" });
+    }
+
     let cartResult = await pool.query(
       `
       SELECT * FROM carts
@@ -41,7 +51,7 @@ export const addToCart = async (req: Request, res: Response) => {
       SELECT * FROM cart_items
       WHERE cart_id = $1 AND menu_item_id = $2
       `,
-      [cart.id, menu_item_id]
+      [cart.id, menuItemId]
     );
 
     if (existingItem.rows.length > 0) {
@@ -51,15 +61,15 @@ export const addToCart = async (req: Request, res: Response) => {
         SET quantity = quantity + $1
         WHERE id = $2
         `,
-        [quantity, existingItem.rows[0].id]
+        [qty, existingItem.rows[0].id]
       );
     } else {
       await pool.query(
         `
-        INSERT INTO cart_items (menu_item_id, quantity)
+        INSERT INTO cart_items (cart_id, menu_item_id, quantity)
         VALUES ($1, $2, $3)
         `,
-        [cart.id, menu_item_id, quantity]
+        [cart.id, menuItemId, qty]
       );
     }
 
@@ -102,8 +112,9 @@ export const getCart = async (req: AuthRequest, res: Response) => {
       `
       SELECT
         ci.id,
+        ci.menu_item_id,
         ci.quantity,
-        m.name,
+        m.name AS menu_item_name,
         m.price,
         m.image
       FROM cart_items ci
@@ -215,10 +226,24 @@ export const deleteCartItem = async (req: Request, res: Response) => {
  * DELETE /cart/clear/:cartId
  * ============================
  */
-export const clearCart = async (req: Request, res: Response) => {
+export const clearCart = async (req: AuthRequest, res: Response) => {
   const { cartId } = req.params;
+  const userId = req.user?.userId;
 
   try {
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const cartResult = await pool.query(
+      `SELECT id FROM carts WHERE id = $1 AND user_id = $2`,
+      [cartId, userId]
+    );
+
+    if (cartResult.rows.length === 0) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+
     await pool.query(
       `
       DELETE FROM cart_items

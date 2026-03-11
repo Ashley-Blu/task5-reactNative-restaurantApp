@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   getMenu,
+  getMenuItemById,
   getMenuByCategory,
   createMenuItem,
   updateMenuItem,
@@ -15,6 +16,7 @@ const router = Router();
 // public
 router.get("/", getMenu);
 router.get("/category/:categoryId", getMenuByCategory);
+router.get("/:id", getMenuItemById);
 
 // admin
 router.post("/", authMiddleware, requireAdmin, createMenuItem);

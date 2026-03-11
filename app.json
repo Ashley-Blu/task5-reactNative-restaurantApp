@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "c3323c51-ecd3-46d9-b6b2-7643b69f7931"
+      }
+    },
+    "android": {
+      "package": "com.ashley.blue.restaurantapp"
+    }
+  }
+}

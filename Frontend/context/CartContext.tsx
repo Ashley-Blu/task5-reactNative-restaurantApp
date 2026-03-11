@@ -24,87 +24,142 @@ const CartContext = createContext<CartContextType | null>(null);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  // 🔹 LOAD CART FROM BACKEND
+  const canUseBackendForMenuItemId = (id: unknown) => {
+    if (typeof id === "number") return Number.isFinite(id);
+    if (typeof id !== "string") return false;
+    const n = Number(id);
+    return Number.isFinite(n) && String(n) === id.trim();
+  };
+
+  const loadLocalCart = async () => {
+    const stored = await AsyncStorage.getItem("cart");
+    if (stored) setItems(JSON.parse(stored));
+  };
+
+  const persistLocalCart = async (next: CartItem[]) => {
+    setItems(next);
+    await AsyncStorage.setItem("cart", JSON.stringify(next));
+  };
+
+  // 🔹 LOAD CART (backend if logged in; otherwise local)
   useEffect(() => {
     (async () => {
       try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) {
+          await loadLocalCart();
+          return;
+        }
+
         const res = await cartApi.getCart();
-        // Map backend cart items to local CartItem shape
         const backendItems = (res.data.items || []).map((item: any) => ({
-          id: item.menu_item_id,
+          id: String(item.menu_item_id),
           name: item.menu_item_name,
-          price: item.price,
-          image: { uri: item.image },
-          quantity: item.quantity,
+          price: Number(item.price),
+          image: item.image ? { uri: item.image } : undefined,
+          quantity: Number(item.quantity),
         }));
+
         setItems(backendItems);
       } catch (err) {
-        // fallback: load from local storage if backend fails
-        const stored = await AsyncStorage.getItem("cart");
-        if (stored) setItems(JSON.parse(stored));
+        await loadLocalCart();
       }
     })();
   }, []);
 
   const addToCart = async (item: Omit<CartItem, "quantity">) => {
     try {
-      await cartApi.addToCart(item.id, 1);
-      // Refetch cart from backend
+      const token = await AsyncStorage.getItem("token");
+      const backendOk = token && canUseBackendForMenuItemId(item.id);
+
+      if (!backendOk) {
+        const next = (() => {
+          const existing = items.find((i) => i.id === item.id);
+          if (existing) {
+            return items.map((i) =>
+              i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+            );
+          }
+          return [...items, { ...item, quantity: 1 }];
+        })();
+        await persistLocalCart(next);
+        return;
+      }
+
+      await cartApi.addToCart(String(item.id), 1);
       const res = await cartApi.getCart();
-      const backendItems = (res.data.items || []).map((item: any) => ({
-        id: item.menu_item_id,
-        name: item.menu_item_name,
-        price: item.price,
-        image: { uri: item.image },
-        quantity: item.quantity,
+      const backendItems = (res.data.items || []).map((it: any) => ({
+        id: String(it.menu_item_id),
+        name: it.menu_item_name,
+        price: Number(it.price),
+        image: it.image ? { uri: it.image } : undefined,
+        quantity: Number(it.quantity),
       }));
       setItems(backendItems);
     } catch (err) {
-      // fallback: local update
-      setItems((prev) => {
-        const existing = prev.find((i) => i.id === item.id);
+      const next = (() => {
+        const existing = items.find((i) => i.id === item.id);
         if (existing) {
-          return prev.map((i) =>
-            i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i,
+          return items.map((i) =>
+            i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
           );
         }
-        return [...prev, { ...item, quantity: 1 }];
-      });
+        return [...items, { ...item, quantity: 1 }];
+      })();
+      await persistLocalCart(next);
     }
   };
 
   const increase = async (id: string) => {
     try {
-      // Find cart item to get cartItemId (backend may use a different id)
+      const token = await AsyncStorage.getItem("token");
+      if (!token || !canUseBackendForMenuItemId(id)) {
+        const next = items.map((i) =>
+          i.id === id ? { ...i, quantity: i.quantity + 1 } : i
+        );
+        await persistLocalCart(next);
+        return;
+      }
+
       const res = await cartApi.getCart();
       const backendItem = (res.data.items || []).find(
-        (i: any) => i.menu_item_id === id,
+        (i: any) => String(i.menu_item_id) === id,
       );
       if (backendItem) {
         await cartApi.updateCartItem(backendItem.id, backendItem.quantity + 1);
         // Refetch cart
         const res2 = await cartApi.getCart();
-        const backendItems = (res2.data.items || []).map((item: any) => ({
-          id: item.menu_item_id,
-          name: item.menu_item_name,
-          price: item.price,
-          image: { uri: item.image },
-          quantity: item.quantity,
+        const backendItems = (res2.data.items || []).map((it: any) => ({
+          id: String(it.menu_item_id),
+          name: it.menu_item_name,
+          price: Number(it.price),
+          image: it.image ? { uri: it.image } : undefined,
+          quantity: Number(it.quantity),
         }));
         setItems(backendItems);
       }
     } catch (err) {
-      setItems((prev) =>
-        prev.map((i) => (i.id === id ? { ...i, quantity: i.quantity + 1 } : i)),
+      const next = items.map((i) =>
+        i.id === id ? { ...i, quantity: i.quantity + 1 } : i
       );
+      await persistLocalCart(next);
     }
   };
 
   const decrease = async (id: string) => {
     try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token || !canUseBackendForMenuItemId(id)) {
+        const next = items
+          .map((i) => (i.id === id ? { ...i, quantity: i.quantity - 1 } : i))
+          .filter((i) => i.quantity > 0);
+        await persistLocalCart(next);
+        return;
+      }
+
       const res = await cartApi.getCart();
       const backendItem = (res.data.items || []).find(
-        (i: any) => i.menu_item_id === id,
+        (i: any) => String(i.menu_item_id) === id,
       );
       if (backendItem) {
         if (backendItem.quantity > 1) {
@@ -117,21 +172,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
         // Refetch cart
         const res2 = await cartApi.getCart();
-        const backendItems = (res2.data.items || []).map((item: any) => ({
-          id: item.menu_item_id,
-          name: item.menu_item_name,
-          price: item.price,
-          image: { uri: item.image },
-          quantity: item.quantity,
+        const backendItems = (res2.data.items || []).map((it: any) => ({
+          id: String(it.menu_item_id),
+          name: it.menu_item_name,
+          price: Number(it.price),
+          image: it.image ? { uri: it.image } : undefined,
+          quantity: Number(it.quantity),
         }));
         setItems(backendItems);
       }
     } catch (err) {
-      setItems((prev) =>
-        prev
-          .map((i) => (i.id === id ? { ...i, quantity: i.quantity - 1 } : i))
-          .filter((i) => i.quantity > 0),
-      );
+      const next = items
+        .map((i) => (i.id === id ? { ...i, quantity: i.quantity - 1 } : i))
+        .filter((i) => i.quantity > 0);
+      await persistLocalCart(next);
     }
   };
 

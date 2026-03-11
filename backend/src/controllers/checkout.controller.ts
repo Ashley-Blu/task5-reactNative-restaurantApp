@@ -12,19 +12,38 @@ export const checkout = async (req: AuthRequest, res: Response) => {
     // =========================
     await client.query("BEGIN");
 
-    // 1️⃣ get cart items
-    const cartItemsResult = await client.query(
+    // 1️⃣ get active cart
+    const cartResult = await client.query(
       `
-      SELECT
-        c.menu_item_id,
-        c.quantity,
-        m.price
-      FROM carts c
-      JOIN menu_items m ON c.menu_item_id = m.id
-      WHERE c.user_id = $1
+      SELECT id
+      FROM carts
+      WHERE user_id = $1 AND status = 'active'
+      LIMIT 1
       FOR UPDATE
       `,
       [userId]
+    );
+
+    if (cartResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ message: "Cart is empty" });
+    }
+
+    const cartId = cartResult.rows[0].id;
+
+    // 2️⃣ get cart items
+    const cartItemsResult = await client.query(
+      `
+      SELECT
+        ci.menu_item_id,
+        ci.quantity,
+        m.price
+      FROM cart_items ci
+      JOIN menu_items m ON ci.menu_item_id = m.id
+      WHERE ci.cart_id = $1
+      FOR UPDATE
+      `,
+      [cartId]
     );
 
     if (cartItemsResult.rows.length === 0) {
@@ -70,8 +89,8 @@ export const checkout = async (req: AuthRequest, res: Response) => {
 
     // 5️⃣ clear cart
     await client.query(
-      `DELETE FROM carts WHERE user_id = $1`,
-      [userId]
+      `DELETE FROM cart_items WHERE cart_id = $1`,
+      [cartId]
     );
 
     // =========================

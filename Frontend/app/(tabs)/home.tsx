@@ -13,6 +13,7 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 
 import api from "../../api/api";
 import { mapMenu } from "../../utils/menuMapper";
+import { pickedForYou as staticPicked, specials as staticSpecials, menu as staticMenu } from "../../data/menu";
 
 import PickedCard from "../../components/PickedCard";
 import SpecialCard from "../../components/SpecialCard";
@@ -38,7 +39,11 @@ export default function Home() {
         setSpecials(structured.specials);
         setMenu(structured.menu);
       } catch {
-        setError("Failed to load menu");
+        // Fallback to static data so the app still works
+        setPicked(staticPicked);
+        setSpecials(staticSpecials);
+        setMenu(staticMenu);
+        setError("Showing offline menu. Live menu failed to load.");
       } finally {
         setLoading(false);
       }

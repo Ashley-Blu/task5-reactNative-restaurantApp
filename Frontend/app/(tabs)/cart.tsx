@@ -1,3 +1,4 @@
+import React from "react";
 import {
   View,
   Text,
@@ -8,33 +9,33 @@ import {
   Alert,
 } from "react-native";
 import { useCart } from "../../context/CartContext";
-import * as checkoutApi from "../../api/checkout";
+import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "expo-router";
 
 export default function Cart() {
   const { items, increase, decrease, totalPrice } = useCart();
+  const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
 
-  const handleCheckout = async () => {
-    setLoading(true);
-    try {
-      await checkoutApi.checkout();
-      Alert.alert("Order Placed!", "Your order has been placed successfully.", [
-        {
-          text: "OK",
-          onPress: () => router.replace("/profile"),
-        },
-      ]);
-      // Optionally: clear cart here if you add a clearCart method
-    } catch (err: any) {
+  const handleCheckoutPress = () => {
+    if (!user) {
       Alert.alert(
-        "Checkout Failed",
-        err.response?.data?.message || "Something went wrong",
+        "Login required",
+        "Please login before checking out.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Go to Login",
+            onPress: () => router.replace("/login"),
+          },
+        ],
       );
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    // Navigate to dedicated checkout screen
+    router.push("/checkout");
   };
 
   if (items.length === 0) {
@@ -81,7 +82,7 @@ export default function Cart() {
         </View>
         <TouchableOpacity
           style={styles.checkoutBtn}
-          onPress={handleCheckout}
+          onPress={handleCheckoutPress}
           disabled={loading}
         >
           <Text style={styles.checkoutText}>

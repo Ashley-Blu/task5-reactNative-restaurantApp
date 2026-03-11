@@ -24,7 +24,9 @@ export default function AdminMenu() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [image, setImage] = useState("");
-  const [category, setCategory] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [featured, setFeatured] = useState(false);
+  const [special, setSpecial] = useState(false);
   const [loading, setLoading] = useState(false);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [error, setError] = useState("");
@@ -34,7 +36,8 @@ export default function AdminMenu() {
       setLoading(true);
       const res = await api.get("/menu");
       setMenu(res.data);
-    } catch (err) {
+      setError("");
+    } catch {
       setError("Failed to load menu");
     } finally {
       setLoading(false);
@@ -42,31 +45,73 @@ export default function AdminMenu() {
   };
 
   const handleAdd = async () => {
-    if (!name || !price || !category) {
-      Alert.alert("Validation", "Name, price, and category are required.");
+    if (!name || !price || !categoryId) {
+      Alert.alert(
+        "Validation",
+        "Name, price, and category ID are required."
+      );
       return;
     }
+
+    const numericCategoryId = Number(categoryId);
+    if (Number.isNaN(numericCategoryId)) {
+      Alert.alert("Validation", "Category ID must be a number.");
+      return;
+    }
+
     setLoading(true);
     try {
-      await api.post("/admin/menu", {
+      await api.post("/menu", {
         name,
         description,
         price: parseFloat(price),
         image,
-        category,
+        category_id: numericCategoryId,
+        featured,
+        special,
       });
       setName("");
       setDescription("");
       setPrice("");
       setImage("");
-      setCategory("");
-      fetchMenu();
+      setCategoryId("");
+      setFeatured(false);
+      setSpecial(false);
+      await fetchMenu();
       Alert.alert("Success", "Menu item added!");
-    } catch (err) {
-      Alert.alert("Error", "Failed to add menu item");
+    } catch (err: any) {
+      Alert.alert(
+        "Error",
+        err?.response?.data?.message || "Failed to add menu item"
+      );
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!id) return;
+    Alert.alert("Delete", "Are you sure you want to delete this item?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setLoading(true);
+            await api.delete(`/menu/${id}`);
+            await fetchMenu();
+          } catch (err: any) {
+            Alert.alert(
+              "Error",
+              err?.response?.data?.message || "Failed to delete item"
+            );
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
   };
 
   useEffect(() => {
@@ -102,13 +147,26 @@ export default function AdminMenu() {
         style={styles.input}
       />
       <TextInput
-        placeholder="Category"
-        value={category}
-        onChangeText={setCategory}
+        placeholder="Category ID (number)"
+        value={categoryId}
+        onChangeText={setCategoryId}
+        keyboardType="numeric"
         style={styles.input}
       />
+      <View style={styles.toggleRow}>
+        <Button
+          title={featured ? "Featured ✓" : "Mark as featured"}
+          onPress={() => setFeatured((v) => !v)}
+        />
+      </View>
+      <View style={styles.toggleRow}>
+        <Button
+          title={special ? "Special ✓" : "Mark as special"}
+          onPress={() => setSpecial((v) => !v)}
+        />
+      </View>
       <Button
-        title={loading ? "Adding..." : "Add Menu Item"}
+        title={loading ? "Saving..." : "Add Menu Item"}
         onPress={handleAdd}
         disabled={loading}
       />
@@ -119,10 +177,17 @@ export default function AdminMenu() {
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <View style={styles.menuItem}>
-            <Text style={styles.menuName}>
-              {item.name} ({item.category})
-            </Text>
-            <Text>R{item.price}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuName}>
+                {item.name} ({item.category})
+              </Text>
+              <Text>R{item.price}</Text>
+            </View>
+            <Button
+              title="Delete"
+              color="#d32f2f"
+              onPress={() => handleDelete(item.id)}
+            />
           </View>
         )}
       />
@@ -140,6 +205,9 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
   },
+  toggleRow: {
+    marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
@@ -147,6 +215,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   error: { color: "red", marginBottom: 8 },
-  menuItem: { padding: 10, borderBottomWidth: 1, borderColor: "#eee" },
+  menuItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   menuName: { fontWeight: "bold" },
 });
